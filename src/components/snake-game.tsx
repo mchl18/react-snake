@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 type Position = {
   row: number;
   col: number;
-}
+};
 type SnakeSegment = Position & {
   direction: string; // You might want to use a more specific type for direction, like "UP" | "DOWN" | "LEFT" | "RIGHT"
 };
@@ -21,7 +21,7 @@ const SnakeGame = () => {
     { row: 0, col: 1, direction: "RIGHT" },
     { row: 0, col: 0, direction: "RIGHT" },
   ]);
-  const generateRandomPosition = useCallback((snake: SnakeSegment[]) => {
+  const generateRandomPosition = useCallback((snake: SnakeSegment[] | Position[]) => {
     let newPos: Position;
     do {
       newPos = {
@@ -84,9 +84,8 @@ const SnakeGame = () => {
         setDirection("RIGHT");
         return initialSnake;
       }
-
       if (head.row === food.row && head.col === food.col) {
-        setFood(generateRandomPosition(newSnake));
+        setFood(generateRandomPosition([...newSnake, food]));
         // Add a new segment to the snake when it collects food
         const lastSegment = newSnake[newSnake.length - 1];
         newSnake.push({ ...lastSegment });
@@ -95,14 +94,14 @@ const SnakeGame = () => {
       return newSnake.length > 0 ? newSnake : prevSnake;
     });
   }, [direction, food.col, food.row, generateRandomPosition]);
+
   useEffect(() => {
     const gameInterval = setInterval(() => {
       handleGameTick();
-    }, 200);
+    }, 100);
 
     return () => clearInterval(gameInterval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [direction, food]);
+  }, [direction, food, handleGameTick]);
   useEffect(() => {
     const handleKeyPress = (e: any) => {
       switch (e.key) {
@@ -144,25 +143,74 @@ const SnakeGame = () => {
 
   const renderGrid = () => {
     const grid = [];
+
     for (let i = 0; i < ROWS; i++) {
       for (let j = 0; j < COLS; j++) {
         let cellType = "empty";
+
         if (snake.find((s) => s.row === i && s.col === j)) {
           cellType = "snake";
+
           if (i === snake[0].row && j === snake[0].col) {
             cellType += ` ${snake[0].direction.toLowerCase()}`;
           } else {
             const segment = snake.find((s) => s.row === i && s.col === j);
             if (!segment) continue;
-            cellType += ` ${segment.direction.toLowerCase()}`;
+
+            // Check if the segment is part of a turn
+            const prevIndex = snake.indexOf(segment) - 1;
+            const nextIndex = snake.indexOf(segment) + 1;
+
+            if (
+              (prevIndex >= 0 &&
+                segment.direction !== snake[prevIndex].direction) ||
+              (nextIndex < snake.length &&
+                segment.direction !== snake[nextIndex].direction)
+            ) {
+              // Add the turn class based on specific turn directions
+              const turnClass = getTurnClass(
+                segment.direction,
+                snake[prevIndex]?.direction
+              );
+              cellType += ` turn ${turnClass}`;
+            } else {
+              cellType += ` ${segment.direction.toLowerCase()}`;
+            }
           }
         } else if (food.row === i && food.col === j) {
           cellType = "food";
         }
+
         grid.push(<div key={`${i}-${j}`} className={`cell ${cellType}`} />);
       }
     }
+
     return grid;
+  };
+
+  const getTurnClass = (
+    currentDirection: string,
+    prevDirection?: string
+  ): string => {
+    if (prevDirection === "UP" && currentDirection === "RIGHT") {
+      return "turn-right-up";
+    } else if (prevDirection === "UP" && currentDirection === "LEFT") {
+      return "turn-left-up";
+    } else if (prevDirection === "DOWN" && currentDirection === "RIGHT") {
+      return "turn-right-down";
+    } else if (prevDirection === "DOWN" && currentDirection === "LEFT") {
+      return "turn-left-down";
+    } else if (prevDirection === "RIGHT" && currentDirection === "UP") {
+      return "turn-up-right";
+    } else if (prevDirection === "RIGHT" && currentDirection === "DOWN") {
+      return "turn-down-right";
+    } else if (prevDirection === "LEFT" && currentDirection === "UP") {
+      return "turn-up-left";
+    } else if (prevDirection === "LEFT" && currentDirection === "DOWN") {
+      return "turn-down-left";
+    }
+
+    return ""; // Default case
   };
 
   return <div className="snake-game">{renderGrid()}</div>;
