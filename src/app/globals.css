@@ -25,3 +25,28 @@ body {
     )
     rgb(var(--background-start-rgb));
 }
+
+.snake-game {
+  display: grid;
+  grid-template-columns: repeat(10, 56px);
+  grid-template-rows: repeat(10, 56px);
+  border: 1px solid;
+  margin: 0 auto;
+  width: 560px;
+}
+
+.snake {
+  background: url(/snake-body.png) no-repeat center center;
+  &.down,
+  &.up {
+    background: url(/snake-body-vertical.png) no-repeat center center;
+  }
+}
+
+.head {
+  background-color: red;
+}
+
+.food {
+  background-color: green;
+}
