@@ -16,30 +16,36 @@ const initialSnake = [
 ];
 
 const SnakeGame = () => {
+  const [isPaused, setIsPaused] = useState(false); // Added state for pause
+  const [isGameOver, setIsGameOver] = useState(false); // Added state for game over
   const [snake, setSnake] = useState([
     { row: 0, col: 2, direction: "RIGHT" },
     { row: 0, col: 1, direction: "RIGHT" },
     { row: 0, col: 0, direction: "RIGHT" },
   ]);
-  const generateRandomPosition = useCallback((snake: SnakeSegment[] | Position[]) => {
-    let newPos: Position;
-    do {
-      newPos = {
-        row: Math.floor(Math.random() * ROWS),
-        col: Math.floor(Math.random() * COLS),
-      };
-    } while (
-      snake.some(
-        (segment) => segment.row === newPos.row && segment.col === newPos.col
-      )
-    );
+  const generateRandomPosition = useCallback(
+    (snake: SnakeSegment[] | Position[]) => {
+      let newPos: Position;
+      do {
+        newPos = {
+          row: Math.floor(Math.random() * ROWS),
+          col: Math.floor(Math.random() * COLS),
+        };
+      } while (
+        snake.some(
+          (segment) => segment.row === newPos.row && segment.col === newPos.col
+        )
+      );
 
-    return newPos;
-  }, []);
+      return newPos;
+    },
+    []
+  );
   const [food, setFood] = useState(generateRandomPosition(snake));
   const [direction, setDirection] = useState("RIGHT");
 
   const handleGameTick = useCallback(() => {
+    if (isPaused || isGameOver) return;
     setSnake((prevSnake) => {
       const newSnake = prevSnake.map((segment, index) => {
         const newSegment = { ...segment };
@@ -79,6 +85,7 @@ const SnakeGame = () => {
         )
       ) {
         // Collision detected, reset the game
+        setIsGameOver(true);
         setSnake(initialSnake);
         setFood(generateRandomPosition(initialSnake));
         setDirection("RIGHT");
@@ -93,7 +100,7 @@ const SnakeGame = () => {
 
       return newSnake.length > 0 ? newSnake : prevSnake;
     });
-  }, [direction, food.col, food.row, generateRandomPosition]);
+  }, [direction, food, generateRandomPosition, isGameOver, isPaused]);
 
   useEffect(() => {
     const gameInterval = setInterval(() => {
@@ -104,33 +111,43 @@ const SnakeGame = () => {
   }, [direction, food, handleGameTick]);
   useEffect(() => {
     const handleKeyPress = (e: any) => {
-      switch (e.key) {
-        case "ArrowUp":
-          setDirection((prevDirection) =>
-            prevDirection !== "DOWN" ? "UP" : prevDirection
-          );
-          handleGameTick();
-          break;
-        case "ArrowDown":
-          setDirection((prevDirection) =>
-            prevDirection !== "UP" ? "DOWN" : prevDirection
-          );
-          handleGameTick();
-          break;
-        case "ArrowLeft":
-          setDirection((prevDirection) =>
-            prevDirection !== "RIGHT" ? "LEFT" : prevDirection
-          );
-          handleGameTick();
-          break;
-        case "ArrowRight":
-          setDirection((prevDirection) =>
-            prevDirection !== "LEFT" ? "RIGHT" : prevDirection
-          );
-          handleGameTick();
-          break;
-        default:
-          break;
+      console.log(e.key);
+      if (e.key === "Escape") {
+        // Toggle the pause state on pressing the "ESC" key
+        setIsPaused((prevIsPaused) => !prevIsPaused);
+      } else if (!isPaused) {
+        switch (e.key) {
+          case "ArrowUp":
+            setIsGameOver(false);
+            setDirection((prevDirection) =>
+              prevDirection !== "DOWN" ? "UP" : prevDirection
+            );
+            handleGameTick();
+            break;
+          case "ArrowDown":
+            setIsGameOver(false);
+            setDirection((prevDirection) =>
+              prevDirection !== "UP" ? "DOWN" : prevDirection
+            );
+            handleGameTick();
+            break;
+          case "ArrowLeft":
+            setIsGameOver(false);
+            setDirection((prevDirection) =>
+              prevDirection !== "RIGHT" ? "LEFT" : prevDirection
+            );
+            handleGameTick();
+            break;
+          case "ArrowRight":
+            setIsGameOver(false);
+            setDirection((prevDirection) =>
+              prevDirection !== "LEFT" ? "RIGHT" : prevDirection
+            );
+            handleGameTick();
+            break;
+          default:
+            break;
+        }
       }
     };
 
@@ -139,9 +156,9 @@ const SnakeGame = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyPress);
     };
-  }, [handleGameTick]); // Empty dependency array, runs only once
+  }, [handleGameTick, isPaused]); // Empty dependency array, runs only once
 
-  const renderGrid = () => {
+  const renderGrid = useCallback(() => {
     const grid = [];
 
     for (let i = 0; i < ROWS; i++) {
@@ -184,9 +201,13 @@ const SnakeGame = () => {
         grid.push(<div key={`${i}-${j}`} className={`cell ${cellType}`} />);
       }
     }
-
+    // I really do not know why this case would happen but it seems to fix an issue where no food is rendered in a very edgy case.
+    if (!grid.find(el => el.props.className.includes('food'))) {
+      // put food at random position
+      setFood(generateRandomPosition(snake));
+    }
     return grid;
-  };
+  }, [food.col, food.row, generateRandomPosition, snake]);
 
   const getTurnClass = (
     currentDirection: string,
@@ -213,7 +234,16 @@ const SnakeGame = () => {
     return ""; // Default case
   };
 
-  return <div className="snake-game">{renderGrid()}</div>;
+  return (
+    <div>
+      <div className="snake-game">{renderGrid()}</div>
+      <div className="text-center text-xl my-3">
+        <div className={`${isPaused ? 'visible' : 'invisible'}`}>Paused</div>
+        <div>Score: {snake.length - 3}</div>
+        {isGameOver && <div>Game Over!</div>}
+      </div>
+    </div>
+  );
 };
 
 export default SnakeGame;
